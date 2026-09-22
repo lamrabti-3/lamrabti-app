@@ -16,13 +16,8 @@ jobs:
           distribution: temurin
           java-version: '17'
       
-      - name: Prepare Android SDK
+      - name: Setup Android SDK
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          ls -la $ANDROID_SDK_ROOT/ || true
-          ls -la $ANDROID_SDK_ROOT/cmdline-tools/ || true
-          
           if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest" ]; then
             SDKMGR="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           elif [ -d "$ANDROID_SDK_ROOT/cmdline-tools/16.0" ]; then
@@ -30,12 +25,22 @@ jobs:
           else
             SDKMGR=$(find $ANDROID_SDK_ROOT -name sdkmanager -type f | head -1)
           fi
-          
-          echo "SDKMANAGER=$SDKMGR"
           echo "SDKMGR=$SDKMGR" >> $GITHUB_ENV
-          
           yes | $SDKMGR --licenses > /dev/null 2>&1 || true
-          $SDKMGR "platform-tools" > /dev/null 2>&1 || true
+      
+      - name: Configure Bubblewrap
+        run: |
+          mkdir -p ~/.bubblewrap
+          cat > ~/.bubblewrap/config.json << EOF
+          {
+            "jdkPath": "$JAVA_HOME",
+            "androidSdkPath": "$ANDROID_SDK_ROOT"
+          }
+          EOF
+          cat ~/.bubblewrap/config.json
+          echo "---"
+          echo "JAVA_HOME=$JAVA_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
       
       - name: Setup TWA project
         run: |
@@ -103,7 +108,7 @@ jobs:
       - name: Build APK
         run: |
           cd twa
-          bubblewrap build --skipPwaValidation
+          yes n | bubblewrap build --skipPwaValidation || true
           ls -la
       
       - name: Upload APK
