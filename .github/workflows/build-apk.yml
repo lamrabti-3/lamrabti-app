@@ -1,0 +1,95 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      
+      - uses: android-actions/setup-android@v3
+      
+      - name: Setup TWA project
+        run: |
+          mkdir -p twa && cd twa
+          cat > twa-manifest.json << 'EOF'
+          {
+            "packageId": "com.lamrabti.said",
+            "host": "lamrabti-said.surge.sh",
+            "name": "LAMRABTI",
+            "launcherName": "LAMRABTI",
+            "display": "standalone",
+            "themeColor": "#0a0a0a",
+            "navigationColor": "#0a0a0a",
+            "navigationColorDark": "#0a0a0a",
+            "navigationDividerColor": "#0a0a0a",
+            "navigationDividerColorDark": "#0a0a0a",
+            "backgroundColor": "#0a0a0a",
+            "enableNotifications": false,
+            "startUrl": "/",
+            "iconUrl": "https://lamrabti-said.surge.sh/icon-512.png",
+            "maskableIconUrl": "https://lamrabti-said.surge.sh/icon-512.png",
+            "splashScreenFadeOutDuration": 300,
+            "signingKey": {
+              "path": "./android.keystore",
+              "alias": "android"
+            },
+            "appVersionName": "1.0.0",
+            "appVersionCode": 1,
+            "shortcuts": [],
+            "generatorApp": "bubblewrap-cli",
+            "webManifestUrl": "https://lamrabti-said.surge.sh/manifest.json",
+            "fallbackType": "customtabs",
+            "features": {},
+            "alphaDependencies": {
+              "enabled": false
+            },
+            "enableSiteSettingsShortcut": true,
+            "isChromeOSOnly": false,
+            "isMetaQuest": false,
+            "fullScopeUrl": "https://lamrabti-said.surge.sh/",
+            "minSdkVersion": 21,
+            "orientation": "portrait",
+            "fingerprints": [],
+            "additionalTrustedOrigins": [],
+            "retainedBundles": []
+          }
+          EOF
+      
+      - name: Generate keystore
+        run: |
+          cd twa
+          keytool -genkeypair -v \
+            -keystore android.keystore \
+            -alias android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass lamrabti123 \
+            -keypass lamrabti123 \
+            -dname "CN=LAMRABTI, OU=Dev, O=Personal, L=Dakhla, ST=Dakhla, C=MA"
+      
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+      
+      - name: Build APK
+        run: |
+          cd twa
+          bubblewrap build --skipPwaValidation
+          ls -la
+      
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lamrabti-apk
+          path: twa/app-release-signed.apk
+          retention-days: 90
